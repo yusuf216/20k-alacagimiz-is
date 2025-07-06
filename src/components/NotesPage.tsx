@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from "react";
 import { Plus, Search, Filter, FileText, Calendar, Tag, Eye, Edit, Download } from "lucide-react";
 import { Button } from "@/components/ui/button";
@@ -7,6 +8,7 @@ import { Badge } from "@/components/ui/badge";
 import { CreateNoteModal } from "./CreateNoteModal";
 import { useToast } from "@/hooks/use-toast";
 import { useLocation } from "react-router-dom";
+import jsPDF from 'jspdf';
 
 interface Note {
   id: number;
@@ -82,11 +84,43 @@ export function NotesPage() {
   };
 
   const exportNoteToPDF = (note: Note) => {
-    // PDF export functionality would require jsPDF
-    toast({
-      title: "PDF Export",
-      description: `"${note.title}" notu PDF olarak dışa aktarıldı.`,
-    });
+    try {
+      const doc = new jsPDF();
+      
+      // Başlık
+      doc.setFontSize(20);
+      doc.text(note.title, 20, 30);
+      
+      // Tarih
+      doc.setFontSize(12);
+      doc.text(`Tarih: ${new Date(note.date).toLocaleDateString('tr-TR')}`, 20, 45);
+      
+      // Etiketler
+      if (note.tags.length > 0) {
+        doc.text(`Etiketler: ${note.tags.join(', ')}`, 20, 55);
+      }
+      
+      // İçerik
+      doc.setFontSize(11);
+      const splitContent = doc.splitTextToSize(note.content, 170);
+      doc.text(splitContent, 20, 70);
+      
+      // PDF dosyasını indir
+      const fileName = `${note.title.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+      doc.save(fileName);
+      
+      toast({
+        title: "PDF İndirildi",
+        description: `"${note.title}" notu PDF olarak indirildi.`,
+      });
+    } catch (error) {
+      console.error('PDF export error:', error);
+      toast({
+        title: "Hata",
+        description: "PDF indirme sırasında bir hata oluştu.",
+        variant: "destructive",
+      });
+    }
   };
 
   const filteredNotes = notes.filter(note =>

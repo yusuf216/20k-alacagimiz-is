@@ -11,13 +11,13 @@ import {
   Connection,
   Edge,
   Node,
-  BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Plus, Save, Download } from "lucide-react";
+import { Plus, Save, Download, Palette } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { Card, CardContent } from "@/components/ui/card";
 
 const initialNodes: Node[] = [
   {
@@ -25,15 +25,36 @@ const initialNodes: Node[] = [
     type: 'default',
     position: { x: 250, y: 25 },
     data: { label: 'Ana Fikir' },
+    style: { 
+      backgroundColor: '#ffffff',
+      border: '2px solid #e2e8f0',
+      borderRadius: '8px',
+      padding: '10px',
+      minWidth: '120px',
+      textAlign: 'center'
+    }
   },
 ];
 
 const initialEdges: Edge[] = [];
 
+const nodeColors = [
+  { name: 'Beyaz', value: '#ffffff', border: '#e2e8f0' },
+  { name: 'Mavi', value: '#dbeafe', border: '#3b82f6' },
+  { name: 'Yeşil', value: '#dcfce7', border: '#10b981' },
+  { name: 'Sarı', value: '#fef3c7', border: '#f59e0b' },
+  { name: 'Pembe', value: '#fce7f3', border: '#ec4899' },
+  { name: 'Mor', value: '#e9d5ff', border: '#8b5cf6' },
+  { name: 'Kırmızı', value: '#fee2e2', border: '#ef4444' },
+];
+
 export function MindMapCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeLabel, setNodeLabel] = useState('');
+  const [selectedNodeId, setSelectedNodeId] = useState<string | null>(null);
+  const [isRenaming, setIsRenaming] = useState(false);
+  const [newNodeName, setNewNodeName] = useState('');
   const { toast } = useToast();
 
   const onConnect = useCallback(
@@ -42,16 +63,31 @@ export function MindMapCanvas() {
   );
 
   const addNewNode = () => {
-    if (!nodeLabel.trim()) return;
+    if (!nodeLabel.trim()) {
+      toast({
+        title: "Hata",
+        description: "Düğüm adı boş olamaz.",
+        variant: "destructive"
+      });
+      return;
+    }
 
     const newNode: Node = {
-      id: `${nodes.length + 1}`,
+      id: `${Date.now()}`,
       type: 'default',
       position: {
         x: Math.random() * 400 + 100,
         y: Math.random() * 400 + 100,
       },
       data: { label: nodeLabel },
+      style: { 
+        backgroundColor: '#ffffff',
+        border: '2px solid #e2e8f0',
+        borderRadius: '8px',
+        padding: '10px',
+        minWidth: '120px',
+        textAlign: 'center'
+      }
     };
 
     setNodes((nds) => [...nds, newNode]);
@@ -59,6 +95,69 @@ export function MindMapCanvas() {
     toast({
       title: "Düğüm eklendi",
       description: "Yeni düğüm zihin haritasına eklendi.",
+    });
+  };
+
+  const onNodeClick = useCallback((event: React.MouseEvent, node: Node) => {
+    setSelectedNodeId(node.id);
+  }, []);
+
+  const changeNodeColor = (color: typeof nodeColors[0]) => {
+    if (!selectedNodeId) return;
+    
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              style: {
+                ...node.style,
+                backgroundColor: color.value,
+                border: `2px solid ${color.border}`,
+              },
+            }
+          : node
+      )
+    );
+    
+    toast({
+      title: "Renk değiştirildi",
+      description: `Düğüm rengi ${color.name.toLowerCase()} olarak değiştirildi.`,
+    });
+  };
+
+  const startRename = () => {
+    if (!selectedNodeId) return;
+    
+    const selectedNode = nodes.find(n => n.id === selectedNodeId);
+    if (selectedNode) {
+      setNewNodeName(selectedNode.data.label);
+      setIsRenaming(true);
+    }
+  };
+
+  const finishRename = () => {
+    if (!selectedNodeId || !newNodeName.trim()) {
+      setIsRenaming(false);
+      return;
+    }
+
+    setNodes((nds) =>
+      nds.map((node) =>
+        node.id === selectedNodeId
+          ? {
+              ...node,
+              data: { ...node.data, label: newNodeName },
+            }
+          : node
+      )
+    );
+
+    setIsRenaming(false);
+    setNewNodeName('');
+    toast({
+      title: "Düğüm yeniden adlandırıldı",
+      description: "Düğüm adı başarıyla değiştirildi.",
     });
   };
 
@@ -91,47 +190,104 @@ export function MindMapCanvas() {
       link.href = url;
       link.download = 'mindmap.json';
       link.click();
-    } else if (format === 'png') {
-      // PNG export functionality would require html2canvas or similar
       toast({
-        title: "PNG Export",
-        description: "PNG dışa aktarma özelliği yakında gelecek.",
+        title: "JSON dışa aktarıldı",
+        description: "Zihin haritası JSON formatında indirildi.",
       });
-    } else if (format === 'pdf') {
-      // PDF export functionality would require jsPDF or similar
+    } else {
       toast({
-        title: "PDF Export",
-        description: "PDF dışa aktarma özelliği yakında gelecek.",
+        title: "Özellik geliştiriliyor",
+        description: `${format.toUpperCase()} dışa aktarma özelliği yakında gelecek.`,
       });
     }
   };
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border-b bg-background">
-        <div className="flex flex-col sm:flex-row gap-2 flex-1 w-full">
+      <div className="flex flex-col gap-4 p-4 border-b bg-background">
+        <div className="flex flex-col sm:flex-row gap-2">
           <Input
             placeholder="Yeni düğüm adı..."
             value={nodeLabel}
             onChange={(e) => setNodeLabel(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addNewNode()}
-            className="flex-1 min-w-0"
+            className="flex-1 min-w-[200px] sm:min-w-0"
           />
-          <Button onClick={addNewNode} size="sm" className="gap-2 w-full sm:w-auto">
+          <Button onClick={addNewNode} size="sm" className="gap-2 whitespace-nowrap">
             <Plus className="w-4 h-4" />
             Düğüm Ekle
           </Button>
         </div>
-        <div className="flex gap-2 w-full sm:w-auto">
-          <Button onClick={saveMindMap} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
+        
+        <div className="flex flex-wrap gap-2">
+          <Button onClick={saveMindMap} variant="outline" size="sm" className="gap-2">
             <Save className="w-4 h-4" />
             Kaydet
           </Button>
-          <Button onClick={() => exportMindMap('json')} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
+          <Button onClick={() => exportMindMap('json')} variant="outline" size="sm" className="gap-2">
             <Download className="w-4 h-4" />
-            İndir
+            JSON İndir
           </Button>
+          {selectedNodeId && (
+            <Button 
+              onClick={startRename} 
+              variant="outline" 
+              size="sm" 
+              className="gap-2"
+            >
+              Yeniden Adlandır
+            </Button>
+          )}
         </div>
+
+        {selectedNodeId && (
+          <Card className="p-3">
+            <CardContent className="p-0">
+              <div className="flex flex-col gap-3">
+                <div className="flex items-center gap-2">
+                  <Palette className="w-4 h-4" />
+                  <span className="text-sm font-medium">Düğüm Rengi:</span>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  {nodeColors.map((color) => (
+                    <button
+                      key={color.name}
+                      onClick={() => changeNodeColor(color)}
+                      className="w-8 h-8 rounded border-2 hover:scale-110 transition-transform"
+                      style={{ 
+                        backgroundColor: color.value, 
+                        borderColor: color.border 
+                      }}
+                      title={color.name}
+                    />
+                  ))}
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        )}
+
+        {isRenaming && (
+          <div className="flex gap-2">
+            <Input
+              value={newNodeName}
+              onChange={(e) => setNewNodeName(e.target.value)}
+              onKeyPress={(e) => e.key === 'Enter' && finishRename()}
+              placeholder="Yeni düğüm adı..."
+              className="flex-1"
+            />
+            <Button onClick={finishRename} size="sm">
+              Tamam
+            </Button>
+            <Button 
+              onClick={() => setIsRenaming(false)} 
+              variant="outline" 
+              size="sm"
+            >
+              İptal
+            </Button>
+          </div>
+        )}
       </div>
       
       <div className="flex-1">
@@ -141,12 +297,13 @@ export function MindMapCanvas() {
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           onConnect={onConnect}
+          onNodeClick={onNodeClick}
           fitView
           style={{ backgroundColor: '#f8fafc' }}
         >
           <Controls />
           <MiniMap />
-          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
+          <Background gap={12} size={1} />
         </ReactFlow>
       </div>
     </div>

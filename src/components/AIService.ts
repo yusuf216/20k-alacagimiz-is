@@ -1,100 +1,74 @@
 
-const OPENROUTER_API_KEY = "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";
+const API_KEY = "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";
 
-export interface AIMessage {
-  role: 'user' | 'assistant';
-  content: string;
-  timestamp: Date;
+interface AIResponse {
+  id: string;
+  object: string;
+  created: number;
+  model: string;
+  choices: {
+    index: number;
+    message: {
+      role: string;
+      content: string;
+    };
+    finish_reason: string;
+  }[];
+  usage: {
+    prompt_tokens: number;
+    completion_tokens: number;
+    total_tokens: number;
+  };
 }
 
 export class AIService {
-  private static async makeRequest(messages: Array<{role: string, content: string}>) {
+  static async chat(message: string): Promise<string> {
     try {
       const response = await fetch("https://openrouter.ai/api/v1/chat/completions", {
         method: "POST",
         headers: {
-          "Authorization": `Bearer ${OPENROUTER_API_KEY}`,
+          "Authorization": `Bearer ${API_KEY}`,
           "HTTP-Referer": window.location.origin,
           "X-Title": "MindFlow AI Assistant",
           "Content-Type": "application/json"
         },
         body: JSON.stringify({
           "model": "google/gemini-2.0-flash-exp:free",
-          "messages": messages,
+          "messages": [
+            {
+              "role": "user",
+              "content": message
+            }
+          ],
           "temperature": 0.7,
-          "max_tokens": 1000,
+          "max_tokens": 2000
         })
       });
 
       if (!response.ok) {
-        throw new Error(`API request failed: ${response.statusText}`);
+        throw new Error(`API Error: ${response.status}`);
       }
 
-      const data = await response.json();
-      return data.choices[0]?.message?.content || "Üzgünüm, bir yanıt oluşturamadım.";
+      const data: AIResponse = await response.json();
+      return data.choices[0]?.message?.content || "Üzgünüm, bir hata oluştu.";
     } catch (error) {
-      console.error('AI API Error:', error);
-      throw new Error('AI hizmetine bağlanırken bir hata oluştu.');
+      console.error('AI Service Error:', error);
+      return "AI servisi şu anda kullanılamıyor. Lütfen daha sonra tekrar deneyin.";
     }
   }
 
-  static async sendMessage(message: string): Promise<string> {
-    const messages = [
-      {
-        role: "system",
-        content: "Sen MindFlow uygulamasının AI asistanısın. Kullanıcılara not alma, zihin haritası oluşturma ve içerik organize etme konularında yardım ediyorsun. Türkçe yanıt ver."
-      },
-      {
-        role: "user",
-        content: message
-      }
-    ];
-
-    return await this.makeRequest(messages);
+  static async summarizeNote(noteContent: string, noteTitle: string): Promise<string> {
+    const prompt = `"${noteTitle}" başlıklı şu notu özetle:\n\n${noteContent}`;
+    return this.chat(prompt);
   }
 
-  static async summarizeNote(noteContent: string): Promise<string> {
-    const messages = [
-      {
-        role: "system",
-        content: "Sen bir not özetleme uzmanısın. Verilen metni ana noktalarını koruyarak özetle. Türkçe yanıt ver."
-      },
-      {
-        role: "user",
-        content: `Lütfen şu notu özetler misin:\n\n${noteContent}`
-      }
-    ];
-
-    return await this.makeRequest(messages);
+  static async generateIdeas(topic: string): Promise<string> {
+    const prompt = `"${topic}" konusu hakkında yaratıcı fikirler ve öneriler ver.`;
+    return this.chat(prompt);
   }
 
-  static async generateMindMapSuggestions(topic: string): Promise<string> {
-    const messages = [
-      {
-        role: "system",
-        content: "Sen zihin haritası oluşturma uzmanısın. Verilen konu için zihin haritası önerileri sun. Türkçe yanıt ver."
-      },
-      {
-        role: "user",
-        content: `"${topic}" konusu için zihin haritası önerileri verebilir misin?`
-      }
-    ];
-
-    return await this.makeRequest(messages);
-  }
-
-  static async improveContent(content: string): Promise<string> {
-    const messages = [
-      {
-        role: "system",
-        content: "Sen bir içerik geliştirme uzmanısın. Verilen metni daha iyi hale getir, düzenle ve geliştir. Türkçe yanıt ver."
-      },
-      {
-        role: "user",
-        content: `Lütfen şu içeriği geliştirir misin:\n\n${content}`
-      }
-    ];
-
-    return await this.makeRequest(messages);
+  static async suggestMindMapNodes(topic: string): Promise<string> {
+    const prompt = `"${topic}" konusu için zihin haritası düğümleri öner. Her düğüm için kısa açıklamalar da ekle.`;
+    return this.chat(prompt);
   }
 }

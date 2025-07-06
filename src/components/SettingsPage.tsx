@@ -1,6 +1,6 @@
 
 import { useState, useEffect } from "react";
-import { Settings, Moon, Sun, Bell, User, Palette, Database, Key, Download, Trash2 } from "lucide-react";
+import { Settings, Moon, Sun, Bell, User, Palette, Database, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
@@ -15,7 +15,6 @@ export function SettingsPage() {
   const [autoSave, setAutoSave] = useState(true);
   const [username, setUsername] = useState("Kullanıcı");
   const [email, setEmail] = useState("user@example.com");
-  const [apiKey, setApiKey] = useState("");
   const { toast } = useToast();
 
   useEffect(() => {
@@ -25,7 +24,6 @@ export function SettingsPage() {
     if (savedSettings.autoSave !== undefined) setAutoSave(savedSettings.autoSave);
     if (savedSettings.username) setUsername(savedSettings.username);
     if (savedSettings.email) setEmail(savedSettings.email);
-    if (savedSettings.apiKey) setApiKey(savedSettings.apiKey);
   }, []);
 
   const saveSettings = () => {
@@ -33,8 +31,7 @@ export function SettingsPage() {
       notifications,
       autoSave,
       username,
-      email,
-      apiKey
+      email
     };
     localStorage.setItem('appSettings', JSON.stringify(settings));
     toast({
@@ -281,34 +278,6 @@ export function SettingsPage() {
             </CardContent>
           </Card>
         </div>
-
-        {/* AI Ayarları */}
-        <Card>
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Key className="w-5 h-5" />
-              AI Ayarları
-            </CardTitle>
-            <CardDescription>
-              Yapay zeka özelliklerini yapılandırın
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            <div className="space-y-2">
-              <Label>OpenRouter API Anahtarı</Label>
-              <Input
-                type="password"
-                placeholder="sk-or-v1-..."
-                value={apiKey}
-                onChange={(e) => setApiKey(e.target.value)}
-              />
-              <p className="text-sm text-muted-foreground">
-                AI asistan özelliklerini kullanmak için OpenRouter API anahtarınızı girin
-              </p>
-            </div>
-            <Button onClick={saveSettings}>API Anahtarını Kaydet</Button>
-          </CardContent>
-        </Card>
       </div>
     </div>
   );
