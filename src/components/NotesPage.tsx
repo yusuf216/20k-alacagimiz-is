@@ -1,12 +1,24 @@
 
+import { useState } from "react";
 import { Plus, Search, Filter, FileText, Calendar, Tag } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { CreateNoteModal } from "./CreateNoteModal";
+
+interface Note {
+  id: number;
+  title: string;
+  content: string;
+  tags: string[];
+  date: string;
+  category: string;
+}
 
 export function NotesPage() {
-  const notes = [
+  const [isModalOpen, setIsModalOpen] = useState(false);
+  const [notes, setNotes] = useState<Note[]>([
     {
       id: 1,
       title: "Proje Toplantısı Notları",
@@ -31,7 +43,19 @@ export function NotesPage() {
       date: "2024-01-12",
       category: "education"
     }
-  ];
+  ]);
+
+  const handleCreateNote = (noteData: { title: string; content: string; tags: string[] }) => {
+    const newNote: Note = {
+      id: notes.length + 1,
+      title: noteData.title,
+      content: noteData.content,
+      tags: noteData.tags,
+      date: new Date().toISOString().split('T')[0],
+      category: "personal"
+    };
+    setNotes([newNote, ...notes]);
+  };
 
   return (
     <div className="flex-1 overflow-auto">
@@ -44,7 +68,10 @@ export function NotesPage() {
               Tüm notlarınızı buradan yönetebilirsiniz
             </p>
           </div>
-          <Button className="gap-2 h-10">
+          <Button 
+            className="gap-2 h-10"
+            onClick={() => setIsModalOpen(true)}
+          >
             <Plus className="w-4 h-4" />
             Yeni Not
           </Button>
@@ -99,7 +126,10 @@ export function NotesPage() {
         </div>
 
         {/* Empty State for more notes */}
-        <Card className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer">
+        <Card 
+          className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer"
+          onClick={() => setIsModalOpen(true)}
+        >
           <CardContent className="flex flex-col items-center justify-center py-12 text-center">
             <Plus className="w-12 h-12 text-muted-foreground mb-4" />
             <h3 className="text-lg font-semibold mb-2">Yeni not oluştur</h3>
@@ -113,6 +143,12 @@ export function NotesPage() {
           </CardContent>
         </Card>
       </div>
+
+      <CreateNoteModal
+        isOpen={isModalOpen}
+        onClose={() => setIsModalOpen(false)}
+        onSave={handleCreateNote}
+      />
     </div>
   );
 }

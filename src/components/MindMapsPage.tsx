@@ -1,12 +1,24 @@
 
-import { Plus, Search, Filter, GitBranch, Calendar, Users } from "lucide-react";
+import { useState } from "react";
+import { Plus, Search, Filter, GitBranch, Calendar, Users, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
+import { MindMapCanvas } from "./MindMapCanvas";
+
+interface MindMap {
+  id: number;
+  title: string;
+  description: string;
+  nodes: number;
+  date: string;
+  collaborators: number;
+}
 
 export function MindMapsPage() {
-  const mindmaps = [
+  const [isCreating, setIsCreating] = useState(false);
+  const [mindmaps, setMindmaps] = useState<MindMap[]>([
     {
       id: 1,
       title: "Proje Mimarisi",
@@ -31,7 +43,27 @@ export function MindMapsPage() {
       date: "2024-01-10",
       collaborators: 2
     }
-  ];
+  ]);
+
+  if (isCreating) {
+    return (
+      <div className="flex-1 overflow-auto flex flex-col">
+        <div className="flex items-center gap-4 p-4 border-b bg-background">
+          <Button 
+            variant="ghost" 
+            size="sm" 
+            onClick={() => setIsCreating(false)}
+            className="gap-2"
+          >
+            <ArrowLeft className="w-4 h-4" />
+            Geri Dön
+          </Button>
+          <h2 className="text-lg font-semibold">Yeni Zihin Haritası</h2>
+        </div>
+        <MindMapCanvas />
+      </div>
+    );
+  }
 
   return (
     <div className="flex-1 overflow-auto">
@@ -44,7 +76,10 @@ export function MindMapsPage() {
               Fikirlerinizi görselleştirin ve bağlantıları keşfedin
             </p>
           </div>
-          <Button className="gap-2 h-10">
+          <Button 
+            className="gap-2 h-10"
+            onClick={() => setIsCreating(true)}
+          >
             <Plus className="w-4 h-4" />
             Yeni Harita
           </Button>
@@ -68,7 +103,11 @@ export function MindMapsPage() {
         {/* Mind Maps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
           {mindmaps.map((mindmap) => (
-            <Card key={mindmap.id} className="hover:shadow-lg transition-all duration-200 cursor-pointer group">
+            <Card 
+              key={mindmap.id} 
+              className="hover:shadow-lg transition-all duration-200 cursor-pointer group"
+              onClick={() => setIsCreating(true)}
+            >
               <CardHeader className="pb-3">
                 <div className="flex items-start justify-between">
                   <GitBranch className="w-5 h-5 text-purple-500" />
@@ -102,7 +141,10 @@ export function MindMapsPage() {
         </div>
 
         {/* Canvas Preview */}
-        <Card className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer">
+        <Card 
+          className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer"
+          onClick={() => setIsCreating(true)}
+        >
           <CardContent className="flex flex-col items-center justify-center py-16 text-center">
             <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-6">
               <GitBranch className="w-12 h-12 text-purple-500" />

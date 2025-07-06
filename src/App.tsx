@@ -10,6 +10,7 @@ import { Dashboard } from "@/components/Dashboard";
 import { NotesPage } from "@/components/NotesPage";
 import { MindMapsPage } from "@/components/MindMapsPage";
 import { AIAssistantPage } from "@/components/AIAssistantPage";
+import { SettingsPage } from "@/components/SettingsPage";
 import NotFound from "./pages/NotFound";
 
 const queryClient = new QueryClient();
@@ -27,6 +28,7 @@ const App = () => (
               <Route path="/notes" element={<NotesPage />} />
               <Route path="/mindmaps" element={<MindMapsPage />} />
               <Route path="/ai-assistant" element={<AIAssistantPage />} />
+              <Route path="/settings" element={<SettingsPage />} />
               <Route path="*" element={<NotFound />} />
             </Routes>
           </Layout>

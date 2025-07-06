@@ -1,50 +1,97 @@
 
-import { Send, Sparkles, MessageCircle, Lightbulb, FileText, Brain } from "lucide-react";
+import { useState, useRef, useEffect } from "react";
+import { Send, Sparkles, Loader2, FileText, Lightbulb, Brain } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
+import { AIService, AIMessage } from "./AIService";
 
 export function AIAssistantPage() {
+  const [messages, setMessages] = useState<AIMessage[]>([
+    {
+      role: 'assistant',
+      content: 'Merhaba! Ben MindFlow AI asistanınızım. Size not alma, zihin haritası oluşturma ve içerik geliştirme konularında yardımcı olabilirim. Nasıl yardımcı olabilirim?',
+      timestamp: new Date()
+    }
+  ]);
+  const [inputMessage, setInputMessage] = useState('');
+  const [isLoading, setIsLoading] = useState(false);
+  const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const scrollToBottom = () => {
+    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
+  };
+
+  useEffect(() => {
+    scrollToBottom();
+  }, [messages]);
+
+  const handleSendMessage = async () => {
+    if (!inputMessage.trim() || isLoading) return;
+
+    const userMessage: AIMessage = {
+      role: 'user',
+      content: inputMessage,
+      timestamp: new Date()
+    };
+
+    setMessages(prev => [...prev, userMessage]);
+    setInputMessage('');
+    setIsLoading(true);
+
+    try {
+      const response = await AIService.sendMessage(inputMessage);
+      const assistantMessage: AIMessage = {
+        role: 'assistant',
+        content: response,
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, assistantMessage]);
+    } catch (error) {
+      const errorMessage: AIMessage = {
+        role: 'assistant',
+        content: 'Üzgünüm, bir hata oluştu. Lütfen tekrar deneyin.',
+        timestamp: new Date()
+      };
+      setMessages(prev => [...prev, errorMessage]);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleKeyPress = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+      e.preventDefault();
+      handleSendMessage();
+    }
+  };
+
   const suggestions = [
     {
       icon: FileText,
       title: "Not özetle",
-      description: "Uzun notlarınızı özetletin"
+      description: "Uzun notlarınızı özetletin",
+      prompt: "Notlarımı özetleyebilir misin?"
     },
     {
       icon: Lightbulb,
       title: "Fikir geliştir",
-      description: "Mevcut fikirlerinizi genişletin"
+      description: "Mevcut fikirlerinizi genişletin",
+      prompt: "Bir proje fikri geliştirmem için yardım edebilir misin?"
     },
     {
       icon: Brain,
       title: "Zihin haritası öner",
-      description: "Konular arası bağlantıları keşfedin"
+      description: "Konular arası bağlantıları keşfedin",
+      prompt: "Bir konu için zihin haritası önerisi verebilir misin?"
     }
   ];
 
-  const conversations = [
-    {
-      id: 1,
-      message: "Merhaba! Size nasıl yardımcı olabilirim?",
-      sender: "ai",
-      time: "Şimdi"
-    },
-    {
-      id: 2,
-      message: "Proje notlarımı özetleyebilir misin?",
-      sender: "user",
-      time: "2 dk önce"
-    },
-    {
-      id: 3,
-      message: "Tabii ki! Proje notlarınızı analiz ettim. İşte önemli noktalar: 1) Proje timeline'ı belirlendi 2) Takım görevleri dağıtıldı 3) İlk milestone 15 Şubat olarak planlandı...",
-      sender: "ai",
-      time: "2 dk önce"
-    }
-  ];
+  const handleSuggestionClick = (prompt: string) => {
+    setInputMessage(prompt);
+  };
 
   return (
     <div className="flex-1 overflow-auto">
@@ -77,6 +124,7 @@ export function AIAssistantPage() {
                     key={index}
                     variant="ghost"
                     className="w-full justify-start h-auto p-3 text-left"
+                    onClick={() => handleSuggestionClick(suggestion.prompt)}
                   >
                     <div className="flex items-start gap-3">
                       <suggestion.icon className="w-4 h-4 mt-0.5 text-muted-foreground" />
@@ -86,26 +134,6 @@ export function AIAssistantPage() {
                       </div>
                     </div>
                   </Button>
-                ))}
-              </CardContent>
-            </Card>
-
-            <Card>
-              <CardHeader className="pb-3">
-                <CardTitle className="text-sm">Son Sohbetler</CardTitle>
-              </CardHeader>
-              <CardContent className="space-y-2">
-                {[
-                  "Proje özetleme",
-                  "Zihin haritası önerisi",
-                  "Not kategorilendirme"
-                ].map((chat, index) => (
-                  <div
-                    key={index}
-                    className="p-2 rounded-lg hover:bg-muted/50 cursor-pointer text-sm"
-                  >
-                    {chat}
-                  </div>
                 ))}
               </CardContent>
             </Card>
@@ -124,7 +152,7 @@ export function AIAssistantPage() {
                   <div>
                     <CardTitle className="text-base">MindFlow AI</CardTitle>
                     <CardDescription className="text-xs">
-                      Aktif • Size yardımcı olmaya hazır
+                      {isLoading ? "Düşünüyor..." : "Aktif • Size yardımcı olmaya hazır"}
                     </CardDescription>
                   </div>
                 </div>
@@ -133,15 +161,15 @@ export function AIAssistantPage() {
               {/* Messages */}
               <ScrollArea className="flex-1 p-4">
                 <div className="space-y-4">
-                  {conversations.map((conversation) => (
+                  {messages.map((message, index) => (
                     <div
-                      key={conversation.id}
+                      key={index}
                       className={`flex gap-3 ${
-                        conversation.sender === 'user' ? 'flex-row-reverse' : ''
+                        message.role === 'user' ? 'flex-row-reverse' : ''
                       }`}
                     >
                       <Avatar className="w-8 h-8 flex-shrink-0">
-                        {conversation.sender === 'ai' ? (
+                        {message.role === 'assistant' ? (
                           <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
                             AI
                           </AvatarFallback>
@@ -151,20 +179,40 @@ export function AIAssistantPage() {
                           </AvatarFallback>
                         )}
                       </Avatar>
-                      <div className={`flex-1 space-y-1 ${conversation.sender === 'user' ? 'text-right' : ''}`}>
+                      <div className={`flex-1 space-y-1 ${message.role === 'user' ? 'text-right' : ''}`}>
                         <div
                           className={`inline-block p-3 rounded-2xl max-w-[80%] ${
-                            conversation.sender === 'user'
+                            message.role === 'user'
                               ? 'bg-primary text-primary-foreground'
                               : 'bg-muted'
                           }`}
                         >
-                          <p className="text-sm">{conversation.message}</p>
+                          <p className="text-sm whitespace-pre-wrap">{message.content}</p>
                         </div>
-                        <p className="text-xs text-muted-foreground">{conversation.time}</p>
+                        <p className="text-xs text-muted-foreground">
+                          {message.timestamp.toLocaleTimeString('tr-TR', { 
+                            hour: '2-digit', 
+                            minute: '2-digit' 
+                          })}
+                        </p>
                       </div>
                     </div>
                   ))}
+                  {isLoading && (
+                    <div className="flex gap-3">
+                      <Avatar className="w-8 h-8 flex-shrink-0">
+                        <AvatarFallback className="bg-gradient-to-br from-purple-500 to-blue-500 text-white text-xs">
+                          AI
+                        </AvatarFallback>
+                      </Avatar>
+                      <div className="flex-1 space-y-1">
+                        <div className="inline-block p-3 rounded-2xl bg-muted">
+                          <Loader2 className="w-4 h-4 animate-spin" />
+                        </div>
+                      </div>
+                    </div>
+                  )}
+                  <div ref={messagesEndRef} />
                 </div>
               </ScrollArea>
 
@@ -174,9 +222,22 @@ export function AIAssistantPage() {
                   <Input
                     placeholder="AI'ya bir soru sorun veya yardım isteyin..."
                     className="flex-1"
+                    value={inputMessage}
+                    onChange={(e) => setInputMessage(e.target.value)}
+                    onKeyPress={handleKeyPress}
+                    disabled={isLoading}
                   />
-                  <Button size="icon" className="h-10 w-10">
-                    <Send className="w-4 h-4" />
+                  <Button 
+                    size="icon" 
+                    className="h-10 w-10"
+                    onClick={handleSendMessage}
+                    disabled={isLoading || !inputMessage.trim()}
+                  >
+                    {isLoading ? (
+                      <Loader2 className="w-4 h-4 animate-spin" />
+                    ) : (
+                      <Send className="w-4 h-4" />
+                    )}
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
