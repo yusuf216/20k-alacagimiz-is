@@ -11,12 +11,13 @@ import {
   Connection,
   Edge,
   Node,
-  NodeTypes,
+  BackgroundVariant,
 } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Plus, Save, Download } from "lucide-react";
+import { useToast } from "@/hooks/use-toast";
 
 const initialNodes: Node[] = [
   {
@@ -33,6 +34,7 @@ export function MindMapCanvas() {
   const [nodes, setNodes, onNodesChange] = useNodesState(initialNodes);
   const [edges, setEdges, onEdgesChange] = useEdgesState(initialEdges);
   const [nodeLabel, setNodeLabel] = useState('');
+  const { toast } = useToast();
 
   const onConnect = useCallback(
     (params: Connection) => setEdges((eds) => addEdge(params, eds)),
@@ -54,6 +56,10 @@ export function MindMapCanvas() {
 
     setNodes((nds) => [...nds, newNode]);
     setNodeLabel('');
+    toast({
+      title: "Düğüm eklendi",
+      description: "Yeni düğüm zihin haritasına eklendi.",
+    });
   };
 
   const saveMindMap = () => {
@@ -62,42 +68,66 @@ export function MindMapCanvas() {
       edges,
       timestamp: new Date().toISOString(),
     };
-    localStorage.setItem('mindmap', JSON.stringify(mindMapData));
-    console.log('Zihin haritası kaydedildi!');
+    const savedMaps = JSON.parse(localStorage.getItem('mindmaps') || '[]');
+    savedMaps.push({
+      id: Date.now(),
+      title: `Zihin Haritası ${savedMaps.length + 1}`,
+      data: mindMapData,
+      createdAt: new Date().toISOString(),
+    });
+    localStorage.setItem('mindmaps', JSON.stringify(savedMaps));
+    toast({
+      title: "Kaydedildi",
+      description: "Zihin haritası başarıyla kaydedildi.",
+    });
   };
 
-  const exportMindMap = () => {
-    const dataStr = JSON.stringify({ nodes, edges }, null, 2);
-    const dataBlob = new Blob([dataStr], { type: 'application/json' });
-    const url = URL.createObjectURL(dataBlob);
-    const link = document.createElement('a');
-    link.href = url;
-    link.download = 'mindmap.json';
-    link.click();
+  const exportMindMap = async (format: 'json' | 'png' | 'pdf' = 'json') => {
+    if (format === 'json') {
+      const dataStr = JSON.stringify({ nodes, edges }, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = 'mindmap.json';
+      link.click();
+    } else if (format === 'png') {
+      // PNG export functionality would require html2canvas or similar
+      toast({
+        title: "PNG Export",
+        description: "PNG dışa aktarma özelliği yakında gelecek.",
+      });
+    } else if (format === 'pdf') {
+      // PDF export functionality would require jsPDF or similar
+      toast({
+        title: "PDF Export",
+        description: "PDF dışa aktarma özelliği yakında gelecek.",
+      });
+    }
   };
 
   return (
     <div className="w-full h-full flex flex-col">
-      <div className="flex items-center gap-4 p-4 border-b bg-background">
-        <div className="flex gap-2 flex-1">
+      <div className="flex flex-col sm:flex-row items-start sm:items-center gap-4 p-4 border-b bg-background">
+        <div className="flex flex-col sm:flex-row gap-2 flex-1 w-full">
           <Input
             placeholder="Yeni düğüm adı..."
             value={nodeLabel}
             onChange={(e) => setNodeLabel(e.target.value)}
             onKeyPress={(e) => e.key === 'Enter' && addNewNode()}
-            className="max-w-xs"
+            className="flex-1 min-w-0"
           />
-          <Button onClick={addNewNode} size="sm" className="gap-2">
+          <Button onClick={addNewNode} size="sm" className="gap-2 w-full sm:w-auto">
             <Plus className="w-4 h-4" />
             Düğüm Ekle
           </Button>
         </div>
-        <div className="flex gap-2">
-          <Button onClick={saveMindMap} variant="outline" size="sm" className="gap-2">
+        <div className="flex gap-2 w-full sm:w-auto">
+          <Button onClick={saveMindMap} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
             <Save className="w-4 h-4" />
             Kaydet
           </Button>
-          <Button onClick={exportMindMap} variant="outline" size="sm" className="gap-2">
+          <Button onClick={() => exportMindMap('json')} variant="outline" size="sm" className="gap-2 flex-1 sm:flex-none">
             <Download className="w-4 h-4" />
             İndir
           </Button>
@@ -116,7 +146,7 @@ export function MindMapCanvas() {
         >
           <Controls />
           <MiniMap />
-          <Background variant="dots" gap={12} size={1} />
+          <Background variant={BackgroundVariant.Dots} gap={12} size={1} />
         </ReactFlow>
       </div>
     </div>

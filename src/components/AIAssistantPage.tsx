@@ -7,18 +7,30 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { AIService, AIMessage } from "./AIService";
+import { useToast } from "@/hooks/use-toast";
 
 export function AIAssistantPage() {
   const [messages, setMessages] = useState<AIMessage[]>([
     {
       role: 'assistant',
-      content: 'Merhaba! Ben MindFlow AI asistanınızım. Size not alma, zihin haritası oluşturma ve içerik geliştirme konularında yardımcı olabilirim. Nasıl yardımcı olabilirim?',
+      content: 'Merhaba! Ben MindFlow AI asistanınızım. Size not alma, zihin haritası oluşturma ve içerik geliştirme konularında yardımcı olabilirim. @notadı yazarak belirli notlarınızı mention edebilirsiniz. Nasıl yardımcı olabilirim?',
       timestamp: new Date()
     }
   ]);
   const [inputMessage, setInputMessage] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [availableNotes, setAvailableNotes] = useState<any[]>([]);
+  const [availableMindmaps, setAvailableMindmaps] = useState<any[]>([]);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Load notes and mindmaps for mentions
+    const notes = JSON.parse(localStorage.getItem('notes') || '[]');
+    const mindmaps = JSON.parse(localStorage.getItem('mindmaps') || '[]');
+    setAvailableNotes(notes);
+    setAvailableMindmaps(mindmaps);
+  }, []);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -28,9 +40,44 @@ export function AIAssistantPage() {
     scrollToBottom();
   }, [messages]);
 
+  const processMentions = (message: string) => {
+    // Process @mentions for notes and mindmaps
+    const mentionRegex = /@(\w+)/g;
+    let processedMessage = message;
+    const mentions = message.match(mentionRegex);
+    
+    if (mentions) {
+      mentions.forEach(mention => {
+        const itemName = mention.substring(1); // Remove @
+        
+        // Find matching note
+        const note = availableNotes.find(n => 
+          n.title.toLowerCase().includes(itemName.toLowerCase())
+        );
+        
+        // Find matching mindmap
+        const mindmap = availableMindmaps.find(m => 
+          m.title.toLowerCase().includes(itemName.toLowerCase())
+        );
+        
+        if (note) {
+          processedMessage += `\n\n[Not: ${note.title}]\nİçerik: ${note.content.substring(0, 500)}...`;
+        }
+        
+        if (mindmap) {
+          processedMessage += `\n\n[Zihin Haritası: ${mindmap.title}]\nDüğüm sayısı: ${mindmap.data?.nodes?.length || 0}`;
+        }
+      });
+    }
+    
+    return processedMessage;
+  };
+
   const handleSendMessage = async () => {
     if (!inputMessage.trim() || isLoading) return;
 
+    const processedInput = processMentions(inputMessage);
+    
     const userMessage: AIMessage = {
       role: 'user',
       content: inputMessage,
@@ -41,8 +88,12 @@ export function AIAssistantPage() {
     setInputMessage('');
     setIsLoading(true);
 
+    // Increment AI request counter
+    const currentCount = parseInt(localStorage.getItem('aiRequestCount') || '0');
+    localStorage.setItem('aiRequestCount', (currentCount + 1).toString());
+
     try {
-      const response = await AIService.sendMessage(inputMessage);
+      const response = await AIService.sendMessage(processedInput);
       const assistantMessage: AIMessage = {
         role: 'assistant',
         content: response,
@@ -56,6 +107,11 @@ export function AIAssistantPage() {
         timestamp: new Date()
       };
       setMessages(prev => [...prev, errorMessage]);
+      toast({
+        title: "Hata",
+        description: "AI servisi ile bağlantı kurulamadı.",
+        variant: "destructive",
+      });
     } finally {
       setIsLoading(false);
     }
@@ -72,8 +128,8 @@ export function AIAssistantPage() {
     {
       icon: FileText,
       title: "Not özetle",
-      description: "Uzun notlarınızı özetletin",
-      prompt: "Notlarımı özetleyebilir misin?"
+      description: "Notlarınızı özetletin",
+      prompt: "Notlarımı özetleyebilir misin? @"
     },
     {
       icon: Lightbulb,
@@ -137,6 +193,29 @@ export function AIAssistantPage() {
                 ))}
               </CardContent>
             </Card>
+
+            {/* Available Notes for Mentions */}
+            {availableNotes.length > 0 && (
+              <Card>
+                <CardHeader className="pb-3">
+                  <CardTitle className="text-sm">Notlarım</CardTitle>
+                  <CardDescription className="text-xs">
+                    @notadı yazarak mention edebilirsiniz
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-1">
+                  {availableNotes.slice(0, 5).map((note, index) => (
+                    <div
+                      key={index}
+                      className="text-xs p-2 rounded hover:bg-accent cursor-pointer"
+                      onClick={() => setInputMessage(prev => prev + `@${note.title.replace(/\s+/g, '')}`)}
+                    >
+                      {note.title}
+                    </div>
+                  ))}
+                </CardContent>
+              </Card>
+            )}
           </div>
 
           {/* Chat Area */}
@@ -220,7 +299,7 @@ export function AIAssistantPage() {
               <div className="border-t p-4">
                 <div className="flex gap-2">
                   <Input
-                    placeholder="AI'ya bir soru sorun veya yardım isteyin..."
+                    placeholder="AI'ya bir soru sorun veya @notadı ile mention yapın..."
                     className="flex-1"
                     value={inputMessage}
                     onChange={(e) => setInputMessage(e.target.value)}
@@ -241,7 +320,7 @@ export function AIAssistantPage() {
                   </Button>
                 </div>
                 <p className="text-xs text-muted-foreground mt-2">
-                  AI'ya sorularınızı sorun, notlarınızı özetlettin veya yeni fikirler geliştirin.
+                  AI'ya sorularınızı sorun, @notadı ile notlarınızı mention edin.
                 </p>
               </div>
             </Card>

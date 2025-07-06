@@ -1,12 +1,13 @@
 
-import { useState } from "react";
-import { Settings, Moon, Sun, Bell, User, Palette, Database, Key } from "lucide-react";
+import { useState, useEffect } from "react";
+import { Settings, Moon, Sun, Bell, User, Palette, Database, Key, Download, Trash2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { useTheme } from "@/hooks/use-theme";
+import { useToast } from "@/hooks/use-toast";
 
 export function SettingsPage() {
   const { theme, setTheme } = useTheme();
@@ -14,6 +15,107 @@ export function SettingsPage() {
   const [autoSave, setAutoSave] = useState(true);
   const [username, setUsername] = useState("Kullanıcı");
   const [email, setEmail] = useState("user@example.com");
+  const [apiKey, setApiKey] = useState("");
+  const { toast } = useToast();
+
+  useEffect(() => {
+    // Load settings from localStorage
+    const savedSettings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    if (savedSettings.notifications !== undefined) setNotifications(savedSettings.notifications);
+    if (savedSettings.autoSave !== undefined) setAutoSave(savedSettings.autoSave);
+    if (savedSettings.username) setUsername(savedSettings.username);
+    if (savedSettings.email) setEmail(savedSettings.email);
+    if (savedSettings.apiKey) setApiKey(savedSettings.apiKey);
+  }, []);
+
+  const saveSettings = () => {
+    const settings = {
+      notifications,
+      autoSave,
+      username,
+      email,
+      apiKey
+    };
+    localStorage.setItem('appSettings', JSON.stringify(settings));
+    toast({
+      title: "Ayarlar kaydedildi",
+      description: "Tüm ayarlarınız başarıyla kaydedildi.",
+    });
+  };
+
+  const exportAllData = () => {
+    const notes = JSON.parse(localStorage.getItem('notes') || '[]');
+    const mindmaps = JSON.parse(localStorage.getItem('mindmaps') || '[]');
+    const settings = JSON.parse(localStorage.getItem('appSettings') || '{}');
+    
+    const allData = {
+      notes,
+      mindmaps,
+      settings,
+      exportDate: new Date().toISOString()
+    };
+    
+    const dataStr = JSON.stringify(allData, null, 2);
+    const dataBlob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(dataBlob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = `mindflow-backup-${new Date().toISOString().split('T')[0]}.json`;
+    link.click();
+    
+    toast({
+      title: "Veriler dışa aktarıldı",
+      description: "Tüm verileriniz başarıyla dışa aktarıldı.",
+    });
+  };
+
+  const deleteAllData = () => {
+    if (confirm('Tüm veriler silinecek. Bu işlem geri alınamaz. Emin misiniz?')) {
+      localStorage.removeItem('notes');
+      localStorage.removeItem('mindmaps');
+      localStorage.removeItem('appSettings');
+      localStorage.removeItem('aiRequestCount');
+      
+      toast({
+        title: "Tüm veriler silindi",
+        description: "Uygulama baştan başlatılıyor...",
+        variant: "destructive",
+      });
+      
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    }
+  };
+
+  const requestNotificationPermission = async () => {
+    if ('Notification' in window) {
+      const permission = await Notification.requestPermission();
+      if (permission === 'granted') {
+        new Notification('MindFlow', {
+          body: 'Bildirimler aktif edildi!',
+          icon: '/favicon.ico'
+        });
+        toast({
+          title: "Bildirimler aktif",
+          description: "Bildirim izni verildi.",
+        });
+      } else {
+        toast({
+          title: "Bildirim izni reddedildi",
+          description: "Bildirimler için izin gerekli.",
+          variant: "destructive",
+        });
+      }
+    }
+  };
+
+  useEffect(() => {
+    // Request notification permission when notifications are enabled
+    if (notifications && 'Notification' in window && Notification.permission === 'default') {
+      requestNotificationPermission();
+    }
+  }, [notifications]);
 
   return (
     <div className="flex-1 overflow-auto">
@@ -139,7 +241,9 @@ export function SettingsPage() {
                   onChange={(e) => setEmail(e.target.value)}
                 />
               </div>
-              <Button className="w-full">Profili Güncelle</Button>
+              <Button onClick={saveSettings} className="w-full">
+                Profili Güncelle
+              </Button>
             </CardContent>
           </Card>
 
@@ -155,13 +259,23 @@ export function SettingsPage() {
               </CardDescription>
             </CardHeader>
             <CardContent className="space-y-4">
-              <Button variant="outline" className="w-full">
+              <Button 
+                variant="outline" 
+                className="w-full gap-2"
+                onClick={exportAllData}
+              >
+                <Download className="w-4 h-4" />
                 Verileri Dışa Aktar
               </Button>
               <Button variant="outline" className="w-full">
                 Verileri İçe Aktar
               </Button>
-              <Button variant="destructive" className="w-full">
+              <Button 
+                variant="destructive" 
+                className="w-full gap-2"
+                onClick={deleteAllData}
+              >
+                <Trash2 className="w-4 h-4" />
                 Tüm Verileri Sil
               </Button>
             </CardContent>
@@ -185,13 +299,14 @@ export function SettingsPage() {
               <Input
                 type="password"
                 placeholder="sk-or-v1-..."
-                defaultValue="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"
+                value={apiKey}
+                onChange={(e) => setApiKey(e.target.value)}
               />
               <p className="text-sm text-muted-foreground">
                 AI asistan özelliklerini kullanmak için OpenRouter API anahtarınızı girin
               </p>
             </div>
-            <Button>API Anahtarını Kaydet</Button>
+            <Button onClick={saveSettings}>API Anahtarını Kaydet</Button>
           </CardContent>
         </Card>
       </div>

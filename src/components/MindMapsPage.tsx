@@ -1,5 +1,5 @@
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { Plus, Search, Filter, GitBranch, Calendar, Users, ArrowLeft } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,36 +14,31 @@ interface MindMap {
   nodes: number;
   date: string;
   collaborators: number;
+  data?: any;
 }
 
 export function MindMapsPage() {
   const [isCreating, setIsCreating] = useState(false);
-  const [mindmaps, setMindmaps] = useState<MindMap[]>([
-    {
-      id: 1,
-      title: "Proje Mimarisi",
-      description: "Yeni projenin teknik mimarisi ve bileşenleri",
-      nodes: 12,
-      date: "2024-01-15",
-      collaborators: 3
-    },
-    {
-      id: 2,
-      title: "Öğrenme Rotası",
-      description: "Yazılım geliştirme öğrenme yol haritası",
-      nodes: 8,
-      date: "2024-01-13",
-      collaborators: 1
-    },
-    {
-      id: 3,
-      title: "İş Fikirleri",
-      description: "Potansiyel iş fikirleri ve değerlendirmeler",
-      nodes: 6,
-      date: "2024-01-10",
-      collaborators: 2
-    }
-  ]);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [mindmaps, setMindmaps] = useState<MindMap[]>([]);
+
+  useEffect(() => {
+    const savedMaps = JSON.parse(localStorage.getItem('mindmaps') || '[]');
+    setMindmaps(savedMaps.map((map: any) => ({
+      id: map.id,
+      title: map.title,
+      description: map.description || "Zihin haritası açıklaması",
+      nodes: map.data?.nodes?.length || 0,
+      date: map.createdAt || new Date().toISOString().split('T')[0],
+      collaborators: 1,
+      data: map.data
+    })));
+  }, [isCreating]);
+
+  const filteredMindmaps = mindmaps.filter(map =>
+    map.title.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    map.description.toLowerCase().includes(searchTerm.toLowerCase())
+  );
 
   if (isCreating) {
     return (
@@ -73,7 +68,7 @@ export function MindMapsPage() {
           <div>
             <h1 className="text-3xl font-bold tracking-tight">Zihin Haritaları</h1>
             <p className="text-muted-foreground">
-              Fikirlerinizi görselleştirin ve bağlantıları keşfedin
+              Fikirlerinizi görselleştirin ve bağlantıları keşfedin ({mindmaps.length} harita)
             </p>
           </div>
           <Button 
@@ -92,6 +87,8 @@ export function MindMapsPage() {
             <Input 
               placeholder="Zihin haritalarında ara..." 
               className="pl-9 h-10"
+              value={searchTerm}
+              onChange={(e) => setSearchTerm(e.target.value)}
             />
           </div>
           <Button variant="outline" className="gap-2 h-10">
@@ -102,7 +99,7 @@ export function MindMapsPage() {
 
         {/* Mind Maps Grid */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-          {mindmaps.map((mindmap) => (
+          {filteredMindmaps.map((mindmap) => (
             <Card 
               key={mindmap.id} 
               className="hover:shadow-lg transition-all duration-200 cursor-pointer group"
@@ -140,25 +137,36 @@ export function MindMapsPage() {
           ))}
         </div>
 
-        {/* Canvas Preview */}
-        <Card 
-          className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer"
-          onClick={() => setIsCreating(true)}
-        >
-          <CardContent className="flex flex-col items-center justify-center py-16 text-center">
-            <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-6">
-              <GitBranch className="w-12 h-12 text-purple-500" />
-            </div>
-            <h3 className="text-xl font-semibold mb-2">Yeni zihin haritası oluştur</h3>
-            <p className="text-muted-foreground mb-6 max-w-md">
-              Fikirlerinizi organize edin, bağlantıları keşfedin ve yaratıcılığınızı serbest bırakın
+        {/* Empty State */}
+        {filteredMindmaps.length === 0 && !searchTerm && (
+          <Card 
+            className="border-dashed border-2 hover:border-primary/50 transition-colors cursor-pointer"
+            onClick={() => setIsCreating(true)}
+          >
+            <CardContent className="flex flex-col items-center justify-center py-16 text-center">
+              <div className="w-24 h-24 rounded-full bg-gradient-to-br from-purple-500/20 to-blue-500/20 flex items-center justify-center mb-6">
+                <GitBranch className="w-12 h-12 text-purple-500" />
+              </div>
+              <h3 className="text-xl font-semibold mb-2">İlk zihin haritanızı oluşturun</h3>
+              <p className="text-muted-foreground mb-6 max-w-md">
+                Fikirlerinizi organize edin, bağlantıları keşfedin ve yaratıcılığınızı serbest bırakın
+              </p>
+              <Button size="lg" className="gap-2">
+                <Plus className="w-5 h-5" />
+                Harita Oluştur
+              </Button>
+            </CardContent>
+          </Card>
+        )}
+
+        {/* No Search Results */}
+        {filteredMindmaps.length === 0 && searchTerm && (
+          <div className="text-center py-12">
+            <p className="text-muted-foreground">
+              "{searchTerm}" için sonuç bulunamadı.
             </p>
-            <Button size="lg" className="gap-2">
-              <Plus className="w-5 h-5" />
-              Harita Oluştur
-            </Button>
-          </CardContent>
-        </Card>
+          </div>
+        )}
       </div>
     </div>
   );
